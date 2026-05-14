@@ -1,0 +1,23 @@
+<!-- index.html -->
+<div class="generator">
+    <h2>Trial Link Generator</h2>
+    <input type="text" id="targetUrl" placeholder="আসল ওয়েবসাইটের ইউআরএল">
+    <input type="number" id="days" placeholder="কত দিনের জন্য?">
+    <button onclick="generateLink()">লিংক তৈরি করুন</button>
+    
+    <p id="result"></p>
+</div>
+
+<script>
+function generateLink() {
+    const url = document.getElementById('targetUrl').value;
+    const days = document.getElementById('days').value;
+    
+    // এখানে ব্যাকএন্ডে API কল করে ডাটাবেজে সেভ করতে হবে।
+    // আপাতত ডামি হিসেবে দেখাচ্ছি:
+    const randomId = Math.random().toString(36).substring(7);
+    const trialLink = `http://localhost:3000/trial/${randomId}`;
+    
+    document.getElementById('result').innerHTML = `ট্রায়াল লিংক: <a href="${trialLink}">${trialLink}</a>`;
+}
+</script>
