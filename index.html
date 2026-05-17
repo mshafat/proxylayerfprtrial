@@ -1,18 +1,22 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web App Trial Link Generator</title>
+    <title>Web App Trial Link Generator v1.1</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h2>ট্রায়াল লিংক জেনারেটর</h2>
+        <h2>Trial Link Generator</h2>
         <div class="form-group">
-            <input type="text" id="targetUrl" placeholder="আসল ওয়েবসাইটের ইউআরএল (https://...) ">
-            <input type="number" id="days" placeholder="কত দিনের ট্রায়াল?">
-            <button onclick="generateLink()">লিংক তৈরি করুন</button>
+            <input type="text" id="targetUrl" placeholder="Original Web URL (https://...)">
+            <input type="number" id="days" placeholder="Trial Duration (In Days)">
+            
+            <!-- Contact fields to show after expiry -->
+            <input type="text" id="contactInfo" placeholder="Contact Info (Phone/Email)">
+            
+            <button onclick="generateLink()">Generate Trial Link</button>
         </div>
         <div id="result"></div>
     </div>
