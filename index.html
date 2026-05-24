@@ -3,12 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web App Trial Link Generator v1.2</title>
+    <title>Web App Trial Link Generator v1.3</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h2>Trial Link Generator v1.2</h2>
+        <h2>Trial Link Generator v1.3</h2>
+        
+        <!-- Extension Section -->
+        <div class="extend-section">
+            <p style="margin: 0 0 8px 0; font-weight: bold; color: #007bff; font-size: 14px;">Extend Expired Link? (Optional)</p>
+            <input type="text" id="expiredLinkInput" placeholder="Paste expired trial link here..." oninput="parseExpiredLink()">
+        </div>
+
         <div class="form-group">
             <input type="text" id="targetUrl" placeholder="Original Web URL (https://...)">
             <input type="text" id="contactInfo" placeholder="Contact Info (Phone/Email)">
@@ -43,7 +50,7 @@
                 </label>
             </div>
             
-            <button onclick="generateLink()">Generate Trial Link</button>
+            <button onclick="generateLink()">Generate / Extend Trial Link</button>
         </div>
         <div id="result"></div>
     </div>
