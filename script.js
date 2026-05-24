@@ -6,20 +6,16 @@ function handleDurationChange() {
     const evergreenLabel = document.getElementById('evergreenModeLabel');
     const fixedMode = document.getElementById('fixedMode');
 
-    // ইনপুট ফিল্ডগুলো লুকিয়ে রাখা (রিসেট) - এখানে ডট (.) ঠিক করা হয়েছে
     customDaysInput.style.display = 'none';
     customDateInput.style.display = 'none';
 
-    // ডিজেবল স্টেট রিসেট করা
     evergreenMode.disabled = false;
     evergreenLabel.classList.remove('disabled-mode');
 
-    // কাস্টম চয়েস অনুযায়ী ইনপুট শো করা
     if (preset === 'custom-days') {
         customDaysInput.style.display = 'block';
     } else if (preset === 'custom-date') {
         customDateInput.style.display = 'block';
-        // তারিখ ও সময় দিলে অন-ক্লিক মোড অটোমেটিক ডিজেবল ও ফিক্সড মোড সিলেক্ট হবে
         fixedMode.checked = true;
         evergreenMode.disabled = true;
         evergreenLabel.classList.add('disabled-mode');
@@ -27,11 +23,46 @@ function handleDurationChange() {
 }
 
 function handleDateInputChange() {
-    // তারিখ পরিবর্তন করলেও যেন অন-ক্লিক অপশন ডিজেবল থাকে
     const evergreenMode = document.getElementById('evergreenMode');
     const fixedMode = document.getElementById('fixedMode');
     fixedMode.checked = true;
     evergreenMode.disabled = true;
+}
+
+// এক্সপায়ারড লিংক থেকে ডেটা রিকভার করার ফাংশন
+function parseExpiredLink() {
+    const linkText = document.getElementById('expiredLinkInput').value.trim();
+    if (!linkText) return;
+
+    try {
+        const urlObj = new URL(linkText);
+        const params = new URLSearchParams(urlObj.search);
+        
+        const encodedSite = params.get('site');
+        const encodedContact = params.get('contact');
+        const mode = params.get('mode');
+
+        if (encodedSite) {
+            // বেস৬৪ ডিকোড করে ইনপুটে বসানো
+            document.getElementById('targetUrl').value = atob(encodedSite);
+        }
+        if (encodedContact) {
+            document.getElementById('contactInfo').value = atob(encodedContact);
+        }
+        if (mode) {
+            const modeRadio = document.getElementById(mode + 'Mode');
+            if (modeRadio) {
+                modeRadio.checked = true;
+                // যদি পুরোনো লিংকটি এভারগ্রিন হয়ে থাকে এবং বর্তমানে ক্যালেন্ডার ভিউ সিলেক্ট না থাকে, তবে এভারগ্রিন মোড অন থাকবে
+                if(document.getElementById('durationPreset').value !== 'custom-date') {
+                    document.getElementById('evergreenMode').disabled = false;
+                    document.getElementById('evergreenModeLabel').classList.remove('disabled-mode');
+                }
+            }
+        }
+    } catch (e) {
+        // ইউজার ভুল বা ইনকমপ্লিট লিংক পেস্ট করলে এরর ইগনোর করবে
+    }
 }
 
 async function generateLink() {
@@ -49,7 +80,6 @@ async function generateLink() {
     let durationInDays = 0;
     let customTimestamp = null;
 
-    // ডিউরেশন ক্যালকুলেশন
     if (preset === 'custom-days') {
         const val = document.getElementById('customDaysInput').value;
         if (!val || val <= 0) { alert("Please enter a valid number of days."); return; }
@@ -79,13 +109,15 @@ async function generateLink() {
         }
         netlifyUrl += `&expires=${expiryTimestamp}`;
     } else {
+        // এভারগ্রিন লিংকের ক্ষেত্রে এক্সটেনশন করলে ইউজারের ব্রাউজারের লোকালস্টোরেজ কী (Key) রিসেট করতে হবে।
+        // তাই নতুন লিংকে একটি ইউনিক টাইমস্ট্যাম্প জুড়ে দেওয়া হচ্ছে যাতে ব্রাউজার এটিকে নতুন লিংক হিসেবে চেনে।
         const durationMs = durationInDays * 24 * 60 * 60 * 1000;
-        netlifyUrl += `&durationMs=${durationMs}&daysLabel=${preset === 'custom-days' ? durationInDays : preset}`;
+        netlifyUrl += `&durationMs=${durationMs}&daysLabel=${preset === 'custom-days' ? durationInDays : preset}&extendToken=${new Date().getTime()}`;
     }
 
     resultElement.innerHTML = `
         <div style="padding: 15px; background: #e9ecef; border-radius: 5px; margin-top: 20px;">
-            <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">Your ${mode === 'fixed' ? 'Fixed' : 'Evergreen'} Trial Link:</p>
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">Your Generated / Extended Trial Link:</p>
             <input type="text" value="${netlifyUrl}" id="finalLink" readonly style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;">
             <button onclick="copyLink()" style="background: #007bff; margin-top:5px;">Copy Link</button>
         </div>
@@ -96,5 +128,5 @@ function copyLink() {
     const copyText = document.getElementById("finalLink");
     copyText.select();
     navigator.clipboard.writeText(copyText.value);
-    alert("Trial link copied to clipboard!");
+    alert("Link copied to clipboard!");
 }
