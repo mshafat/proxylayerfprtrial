@@ -6,19 +6,20 @@ function handleDurationChange() {
     const evergreenLabel = document.getElementById('evergreenModeLabel');
     const fixedMode = document.getElementById('fixedMode');
 
-    // ইনপুট ফিল্ডগুলো রিসেট করা
-    customDaysInput style.display = 'none';
-    customDateInput style.display = 'none';
+    // ইনপুট ফিল্ডগুলো লুকিয়ে রাখা (রিসেট) - এখানে ডট (.) ঠিক করা হয়েছে
+    customDaysInput.style.display = 'none';
+    customDateInput.style.display = 'none';
 
     // ডিজেবল স্টেট রিসেট করা
     evergreenMode.disabled = false;
     evergreenLabel.classList.remove('disabled-mode');
 
+    // কাস্টম চয়েস অনুযায়ী ইনপুট শো করা
     if (preset === 'custom-days') {
-        customDaysInput style.display = 'block';
+        customDaysInput.style.display = 'block';
     } else if (preset === 'custom-date') {
-        customDateInput style.display = 'block';
-        // তারিখ ও সময় অপশন আনলে অটোমেটিক অন-ক্লিক মোড ডিজেবল করার প্রস্তুতি
+        customDateInput.style.display = 'block';
+        // তারিখ ও সময় দিলে অন-ক্লিক মোড অটোমেটিক ডিজেবল ও ফিক্সড মোড সিলেক্ট হবে
         fixedMode.checked = true;
         evergreenMode.disabled = true;
         evergreenLabel.classList.add('disabled-mode');
@@ -26,7 +27,7 @@ function handleDurationChange() {
 }
 
 function handleDateInputChange() {
-    // নিশ্চিত করা যে তারিখ ইনপুট দিলেও অন-ক্লিক ডিজেবল থাকে
+    // তারিখ পরিবর্তন করলেও যেন অন-ক্লিক অপশন ডিজেবল থাকে
     const evergreenMode = document.getElementById('evergreenMode');
     const fixedMode = document.getElementById('fixedMode');
     fixedMode.checked = true;
@@ -78,7 +79,6 @@ async function generateLink() {
         }
         netlifyUrl += `&expires=${expiryTimestamp}`;
     } else {
-        // Evergreen মোডের জন্য মিলিসেকেন্ডে কনভার্ট করে পাঠানো হচ্ছে (১২ ঘন্টার জন্য ০.৫ দিন হ্যান্ডেল করার জন্য)
         const durationMs = durationInDays * 24 * 60 * 60 * 1000;
         netlifyUrl += `&durationMs=${durationMs}&daysLabel=${preset === 'custom-days' ? durationInDays : preset}`;
     }
