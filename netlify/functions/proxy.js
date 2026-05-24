@@ -5,11 +5,12 @@ exports.handler = async (event, context) => {
     const encodedContact = event.queryStringParameters.contact;
     const mode = event.queryStringParameters.mode || 'fixed';
     
-    // Parameters for Fixed Mode
+    // Fixed Mode
     const expires = event.queryStringParameters.expires;
     
-    // Parameters for Evergreen Mode
-    const duration = event.queryStringParameters.duration;
+    // Evergreen Mode
+    const durationMs = event.queryStringParameters.durationMs;
+    const daysLabel = event.queryStringParameters.daysLabel || "Custom";
 
     if (!encodedUrl) {
         return { statusCode: 400, body: "Invalid Request: Missing site." };
@@ -22,7 +23,7 @@ exports.handler = async (event, context) => {
         let isExpired = false;
         let displayExpiry = "";
 
-        // ১. FIXED CALENDAR MODE LۆGIC
+        // ১. FIXED CALENDAR MODE LOGIC
         if (mode === 'fixed' && expires) {
             const expiryDate = new Date(parseInt(expires));
             const today = new Date();
@@ -30,36 +31,31 @@ exports.handler = async (event, context) => {
             if (today > expiryDate) isExpired = true;
         }
 
-        // যদি Fixed মোডে মেয়াদ শেষ হয়ে যায়, তবে সরাসরি এক্সপায়ার্ড পেজ রিটার্ন করবে
         if (isExpired) {
             return returnExpiredPage(contactInfo, displayExpiry);
         }
 
-        // আসল ওয়েবসাইট থেকে ডাটা আনা
         const response = await axios.get(targetUrl);
         let html = response.data;
 
-        // ২. EVERGREEN / ON-CLICK MODE LOGIC (JavaScript Injection)
+        // ২. EVERGREEN MODE LOGIC
         let evergreenScript = "";
-        if (mode === 'evergreen' && duration) {
+        if (mode === 'evergreen' && durationMs) {
             const storageKey = `trial_start_${encodedUrl}`;
             evergreenScript = `
                 <script>
                     (function() {
                         let startTime = localStorage.getItem('${storageKey}');
-                        const durationDays = parseInt('${duration}');
-                        const maxPeriod = durationDays * 24 * 60 * 60 * 1000; // milliseconds
+                        const maxPeriod = parseInt('${durationMs}'); 
                         const now = new Date().getTime();
 
                         if (!startTime) {
-                            // প্রথমবার ক্লিক করলে সময় সেভ হবে
                             localStorage.setItem('${storageKey}', now);
                             startTime = now;
                         }
 
                         const timeElapsed = now - parseInt(startTime);
                         if (timeElapsed > maxPeriod) {
-                            // মেয়াদ শেষ হলে স্ক্রিন লক করে মেসেজ দেখাবে
                             document.body.innerHTML = \`
                                 <div style="font-family: Arial, sans-serif; text-align: center; max-width: 500px; margin: 100px auto; padding: 30px; border: 1px solid #ffccd5; background-color: #fff5f5; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); color: #333;">
                                     <h1 style="color: #e53e3e; margin-top: 0;">Sorry, your trial period has expired!</h1>
@@ -69,15 +65,22 @@ exports.handler = async (event, context) => {
                                     </div>
                                 </div>
                             \`;
-                            window.stop(); // পরবর্তী স্ক্রিপ্ট রান হওয়া বন্ধ করবে
+                            window.stop();
                         }
                     })();
                 </script>
             `;
         }
 
-        // ব্যানার তৈরি (Evergreen এর জন্য এটি জাভাস্ক্রিপ্ট দিয়ে আপডেট করা ভালো, তবে আপাতত সাধারণ টেক্সট দেওয়া হলো)
-        const bannerText = mode === 'fixed' ? `Expires on: ${displayExpiry}` : `Individual Free Trial (${duration} Days)`;
+        // ব্যানার টেক্সট জেনারেশন
+        let bannerText = "";
+        if (mode === 'fixed') {
+            bannerText = `Expires on: ${displayExpiry}`;
+        } else {
+            const labelText = daysLabel === "0.5" ? "12 Hours" : (daysLabel === "1" ? "24 Hours" : `${daysLabel} Days`);
+            bannerText = `Individual Free Trial (${labelText})`;
+        }
+
         const banner = `
             <div style="background: #ff4757; color: white; text-align: center; padding: 10px; position: sticky; top: 0; z-index: 9999; font-family: sans-serif; font-weight: bold; font-size: 14px;">
                 TRIAL VERSION. ${bannerText}
@@ -98,7 +101,6 @@ exports.handler = async (event, context) => {
     }
 };
 
-// এক্সপায়ার্ড পেজ জেনারেটর ফাংশন
 function returnExpiredPage(contactInfo, displayExpiry) {
     return {
         statusCode: 403,
