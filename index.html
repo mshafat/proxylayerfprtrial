@@ -3,18 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web App Trial Link Generator v1.1</title>
+    <title>Web App Trial Link Generator v1.2</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h2>Trial Link Generator</h2>
+        <h2>Trial Link Generator v1.2</h2>
         <div class="form-group">
             <input type="text" id="targetUrl" placeholder="Original Web URL (https://...)">
             <input type="number" id="days" placeholder="Trial Duration (In Days)">
-            
-            <!-- Contact fields to show after expiry -->
             <input type="text" id="contactInfo" placeholder="Contact Info (Phone/Email)">
+            
+            <!-- New Mode Selection -->
+            <div class="mode-selection">
+                <p>Select Trial Mode:</p>
+                <label>
+                    <input type="radio" name="trialMode" value="fixed" checked> 
+                    <strong>Fixed Calendar Trial</strong> (Expires on a set date for everyone)
+                </label>
+                <label>
+                    <input type="radio" name="trialMode" value="evergreen"> 
+                    <strong>On-Click Individual Trial</strong> (Evergreen - Starts when user clicks)
+                </label>
+            </div>
             
             <button onclick="generateLink()">Generate Trial Link</button>
         </div>
