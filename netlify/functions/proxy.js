@@ -8,8 +8,8 @@ exports.handler = async (event, context) => {
     const durationMs = event.queryStringParameters.durationMs;
     const daysLabel = event.queryStringParameters.daysLabel || "Custom";
     
-    // ইউজার যদি এক্সপায়ারড পেজ থেকে কোনো রিনিউ কোড ইনপুট দেয়
-    const renewCode = event.queryStringParameters.renewCode || "";
+    // ক্লায়েন্টের ইনপুট দেওয়া ডাইনামিক পাসকোড
+    const renewCode = (event.queryStringParameters.renewCode || "").trim().toLowerCase();
 
     if (!encodedUrl) {
         return { statusCode: 400, body: "Invalid Request: Missing site." };
@@ -23,14 +23,40 @@ exports.handler = async (event, context) => {
         let displayExpiry = "";
         let extraTimeMs = 0;
 
-        // সিক্রেট পাসকোড লজিক (কোড অনুযায়ী এক্সট্রা মিলিসেকেন্ড যোগ হবে)
-        // আপনি আপনার ইচ্ছামত কোড এবং দিন এখানে সেট করতে পারবেন
-        if (renewCode === 'plus3days') { extraTimeMs = 3 * 24 * 60 * 60 * 1000; }
-        else if (renewCode === 'plus7days') { extraTimeMs = 7 * 24 * 60 * 60 * 1000; }
-        else if (renewCode === 'plus30days') { extraTimeMs = 30 * 24 * 60 * 60 * 1000; }
+        // ----------------------------------------------------
+        // ডাইনামিক পাসকোড ভ্যালিডেশন এবং ম্যাথ লজিক (v1.4)
+        // ----------------------------------------------------
+        if (renewCode.startsWith('p')) {
+            // আজকের তারিখের যোগফল বের করা (যেমন: ২৪ তারিখ হলে ২+৪ = ৬)
+            const todayDate = new Date().getDate(); 
+            const dateSum = todayDate.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0);
+            
+            // কোডের শেষে আপনার ম্যাথ পজিশন মিলছে কিনা চেক করা (p12h6 এর শেষের ৬)
+            if (renewCode.endsWith(dateSum.toString())) {
+                // মাঝখানের অংশটুকু কেটে নেওয়া (যেমন: '12h' অথবা '3d')
+                const corePayload = renewCode.slice(1, -dateSum.toString().length);
+                
+                // ঘন্টার হিসাব (h) -> যেমন: 12h, 5h
+                if (corePayload.endsWith('h')) {
+                    const hours = parseInt(corePayload.replace('h', ''));
+                    if (!isNaN(hours) && hours > 0) {
+                        extraTimeMs = hours * 60 * 60 * 1000;
+                    }
+                } 
+                // দিনের হিসাব (d) -> যেমন: 3d, 7d, 30d
+                else if (corePayload.endsWith('d')) {
+                    const days = parseInt(corePayload.replace('d', ''));
+                    if (!isNaN(days) && days > 0) {
+                        extraTimeMs = days * 24 * 60 * 60 * 1000;
+                    }
+                }
+            }
+        }
+        // ----------------------------------------------------
 
         // ১. FIXED CALENDAR MODE
         if (mode === 'fixed' && expires) {
+            // যদি পাসকোড সঠিক হয় তবে মূল এক্সপায়ারি ডেটের সাথে এক্সট্রা টাইম যোগ হবে
             const expiryDate = new Date(parseInt(expires) + extraTimeMs);
             const today = new Date();
             displayExpiry = expiryDate.toLocaleString();
@@ -38,7 +64,6 @@ exports.handler = async (event, context) => {
         }
 
         if (isExpired) {
-            // যদি এক্সপায়ার হয়ে যায়, তবে রিনিউ করার অপশন সহ পেজ দেখাবে
             return returnExpiredPage(contactInfo, displayExpiry, event.queryStringParameters);
         }
 
@@ -52,8 +77,8 @@ exports.handler = async (event, context) => {
             evergreenScript = `
                 <script>
                     (function() {
-                        // যদি রিনিউ কোড পাস করা হয়, তবে লোকালস্টোরেজ রিসেট করে নতুন করে টাইম শুরু হবে
-                        if ("${renewCode}" !== "") {
+                        // সঠিক কোড দিলে লোকালস্টোরেজ ক্লিয়ার হয়ে নতুন করে টাইম কাউন্ট শুরু হবে
+                        if (${extraTimeMs} > 0) {
                             localStorage.setItem('${storageKey}', new Date().getTime());
                         }
 
@@ -68,16 +93,12 @@ exports.handler = async (event, context) => {
 
                         const timeElapsed = now - parseInt(startTime);
                         if (timeElapsed > maxPeriod) {
-                            // এভারগ্রিন মোডে এক্সপায়ার হলে রিনিউ ফর্ম দেখানোর রিডাইরেকশন লজিক
-                            const currentUrl = new URL(window.location.href);
-                            currentUrl.searchParams.set('expired_status', 'true');
-                            
                             document.body.innerHTML = \`
                                 <div style="font-family: Arial, sans-serif; text-align: center; max-width: 500px; margin: 100px auto; padding: 30px; border: 1px solid #ffccd5; background-color: #fff5f5; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); color: #333;">
                                     <h1 style="color: #e53e3e; margin-top: 0;">Sorry, your trial period has expired!</h1>
-                                    <p style="font-size: 16px;">Please refresh or enter an extension code if provided by the admin.</p>
+                                    <p style="font-size: 16px;">Please refresh or enter an extension passcode if provided by the admin.</p>
                                     <div style="margin: 20px 0;">
-                                        <input type="text" id="rCode" placeholder="Enter Extension Passcode" style="padding: 10px; width: 200px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <input type="text" id="rCode" placeholder="Enter Extension Passcode" style="padding: 10px; width: 220px; border: 1px solid #ddd; border-radius: 4px;">
                                         <button onclick="let u = new URL(window.location.href); u.searchParams.set('renewCode', document.getElementById('rCode').value); window.location.href = u.href;" style="padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Apply</button>
                                     </div>
                                     <p style="font-size: 14px; color: #666;">Contact for details: <strong>${contactInfo}</strong></p>
@@ -95,7 +116,7 @@ exports.handler = async (event, context) => {
             bannerText = `Expires on: ${displayExpiry}`;
         } else {
             const labelText = daysLabel === "0.5" ? "12 Hours" : (daysLabel === "1" ? "24 Hours" : `${daysLabel} Days`);
-            bannerText = `Individual Free Trial (${labelText}) ${renewCode ? '[Extended]' : ''}`;
+            bannerText = `Individual Free Trial (${labelText}) ${extraTimeMs > 0 ? '[Extended]' : ''}`;
         }
 
         const banner = `
@@ -119,7 +140,6 @@ exports.handler = async (event, context) => {
 };
 
 function returnExpiredPage(contactInfo, displayExpiry, queryParams) {
-    // বর্তমান ইউআরএল প্যারামিটার তৈরি করা যাতে রিনিউ কোড সাবমিট করা যায়
     const searchParams = new URLSearchParams(queryParams);
     
     return {
@@ -151,10 +171,9 @@ function returnExpiredPage(contactInfo, displayExpiry, queryParams) {
                     <p>To extend your trial or get full access, please contact the administrator:</p>
                     <div class="contact-box">${contactInfo}</div>
                     
-                    <!-- রিনিউ কোড ইনপুট সেকশন -->
                     <div class="renew-box">
                         <p style="font-size:14px; margin-bottom:8px; font-weight:bold; color:#4a5568;">Have an Extension Passcode?</p>
-                        <input type="text" id="passcode" placeholder="Enter code (e.g. plus7days)">
+                        <input type="text" id="passcode" placeholder="Enter passcode...">
                         <button onclick="applyCode()">Extend</button>
                     </div>
 
