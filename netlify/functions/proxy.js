@@ -8,6 +8,7 @@ exports.handler = async (event, context) => {
     const durationMs = event.queryStringParameters.durationMs;
     const daysLabel = event.queryStringParameters.daysLabel || "Custom";
     
+    // ক্লায়েন্টের ইনপুট দেওয়া পাসকোড
     const renewCode = (event.queryStringParameters.renewCode || "").trim().toLowerCase();
 
     if (!encodedUrl) {
@@ -23,9 +24,9 @@ exports.handler = async (event, context) => {
         let extraTimeMs = 0;
 
         // ----------------------------------------------------
-        // টাইমজোন-সুরক্ষিত ডাইনামিক পাসকোড ভ্যালিডেশন (v1.5)
+        // নতুন পাসকোড ভ্যালিডেশন এবং ম্যাথ লজিক (v1.6 - Only Hours)
         // ----------------------------------------------------
-        if (renewCode.startsWith('p')) {
+        if (renewCode.startsWith('p') && renewCode.includes('-')) {
             const now = new Date();
             
             // ১. লোকাল টাইম অনুযায়ী আজকের তারিখের যোগফল (যেমন: ২৪ তারিখ = ২+৪ = ৬)
@@ -36,31 +37,20 @@ exports.handler = async (event, context) => {
             const utcDate = now.getUTCDate();
             const utcSum = utcDate.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0);
             
-            // ক্লায়েন্টের দেওয়া কোডটি লোকাল অথবা ইউটিসি যেকোনো একটির সাথে মিললেই হবে
-            let validSuffix = "";
-            if (renewCode.endsWith(localSum.toString())) {
-                validSuffix = localSum.toString();
-            } else if (renewCode.endsWith(utcSum.toString())) {
-                validSuffix = utcSum.toString();
-            }
+            // হাইফেন দিয়ে কোডটিকে দুই ভাগে ভাগ করা (যেমন: p168 এবং 6)
+            const parts = renewCode.split('-');
+            const firstPart = parts[0]; // 'p168'
+            const secondPart = parts[1]; // '6'
 
-            if (validSuffix !== "") {
-                // মূল পেলোড আলাদা করা (যেমন: '12h' বা '3d')
-                const corePayload = renewCode.slice(1, -validSuffix.length);
-                
-                // ঘন্টার হিসাব (h)
-                if (corePayload.endsWith('h')) {
-                    const hours = parseInt(corePayload.replace('h', ''));
-                    if (!isNaN(hours) && hours > 0) {
-                        extraTimeMs = hours * 60 * 60 * 1000;
-                    }
-                } 
-                // দিনের হিসাব (d)
-                else if (corePayload.endsWith('d')) {
-                    const days = parseInt(corePayload.replace('d', ''));
-                    if (!isNaN(days) && days > 0) {
-                        extraTimeMs = days * 24 * 60 * 60 * 1000;
-                    }
+            // শেষের সংখ্যাটি আজকের লোকাল অথবা ইউটিসি যোগফলের সাথে মিলছে কিনা চেক করা
+            if (secondPart === localSum.toString() || secondPart === utcSum.toString()) {
+                // 'p' বাদ দিয়ে শুধু ঘন্টার সংখ্যাটি বের করা (যেমন: '168')
+                const hoursText = firstPart.slice(1);
+                const hours = parseInt(hoursText);
+
+                if (!isNaN(hours) && hours > 0) {
+                    // ঘন্টাকে মিলিসেকেন্ডে রূপান্তর
+                    extraTimeMs = hours * 60 * 60 * 1000;
                 }
             }
         }
@@ -111,7 +101,7 @@ exports.handler = async (event, context) => {
                                     </div>
                                     <p style="font-size: 14px; color: #666;">Contact for details: <strong>${contactInfo}</strong></p>
                                 </div>
-                            \`
+                            \`;
                             window.stop();
                         }
                     })();
