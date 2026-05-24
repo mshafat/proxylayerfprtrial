@@ -8,7 +8,6 @@ exports.handler = async (event, context) => {
     const durationMs = event.queryStringParameters.durationMs;
     const daysLabel = event.queryStringParameters.daysLabel || "Custom";
     
-    // ক্লায়েন্টের ইনপুট দেওয়া ডাইনামিক পাসকোড
     const renewCode = (event.queryStringParameters.renewCode || "").trim().toLowerCase();
 
     if (!encodedUrl) {
@@ -24,26 +23,39 @@ exports.handler = async (event, context) => {
         let extraTimeMs = 0;
 
         // ----------------------------------------------------
-        // ডাইনামিক পাসকোড ভ্যালিডেশন এবং ম্যাথ লজিক (v1.4)
+        // টাইমজোন-সুরক্ষিত ডাইনামিক পাসকোড ভ্যালিডেশন (v1.5)
         // ----------------------------------------------------
         if (renewCode.startsWith('p')) {
-            // আজকের তারিখের যোগফল বের করা (যেমন: ২৪ তারিখ হলে ২+৪ = ৬)
-            const todayDate = new Date().getDate(); 
-            const dateSum = todayDate.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0);
+            const now = new Date();
             
-            // কোডের শেষে আপনার ম্যাথ পজিশন মিলছে কিনা চেক করা (p12h6 এর শেষের ৬)
-            if (renewCode.endsWith(dateSum.toString())) {
-                // মাঝখানের অংশটুকু কেটে নেওয়া (যেমন: '12h' অথবা '3d')
-                const corePayload = renewCode.slice(1, -dateSum.toString().length);
+            // ১. লোকাল টাইম অনুযায়ী আজকের তারিখের যোগফল (যেমন: ২৪ তারিখ = ২+৪ = ৬)
+            const localDate = now.getDate();
+            const localSum = localDate.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0);
+            
+            // ২. সার্ভার/ইউটিসি টাইম অনুযায়ী তারিখের যোগফল (টাইমজোন ব্যাকআপ)
+            const utcDate = now.getUTCDate();
+            const utcSum = utcDate.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0);
+            
+            // ক্লায়েন্টের দেওয়া কোডটি লোকাল অথবা ইউটিসি যেকোনো একটির সাথে মিললেই হবে
+            let validSuffix = "";
+            if (renewCode.endsWith(localSum.toString())) {
+                validSuffix = localSum.toString();
+            } else if (renewCode.endsWith(utcSum.toString())) {
+                validSuffix = utcSum.toString();
+            }
+
+            if (validSuffix !== "") {
+                // মূল পেলোড আলাদা করা (যেমন: '12h' বা '3d')
+                const corePayload = renewCode.slice(1, -validSuffix.length);
                 
-                // ঘন্টার হিসাব (h) -> যেমন: 12h, 5h
+                // ঘন্টার হিসাব (h)
                 if (corePayload.endsWith('h')) {
                     const hours = parseInt(corePayload.replace('h', ''));
                     if (!isNaN(hours) && hours > 0) {
                         extraTimeMs = hours * 60 * 60 * 1000;
                     }
                 } 
-                // দিনের হিসাব (d) -> যেমন: 3d, 7d, 30d
+                // দিনের হিসাব (d)
                 else if (corePayload.endsWith('d')) {
                     const days = parseInt(corePayload.replace('d', ''));
                     if (!isNaN(days) && days > 0) {
@@ -54,9 +66,7 @@ exports.handler = async (event, context) => {
         }
         // ----------------------------------------------------
 
-        // ১. FIXED CALENDAR MODE
         if (mode === 'fixed' && expires) {
-            // যদি পাসকোড সঠিক হয় তবে মূল এক্সপায়ারি ডেটের সাথে এক্সট্রা টাইম যোগ হবে
             const expiryDate = new Date(parseInt(expires) + extraTimeMs);
             const today = new Date();
             displayExpiry = expiryDate.toLocaleString();
@@ -70,14 +80,12 @@ exports.handler = async (event, context) => {
         const response = await axios.get(targetUrl);
         let html = response.data;
 
-        // ২. EVERGREEN MODE
         let evergreenScript = "";
         if (mode === 'evergreen' && durationMs) {
             const storageKey = `trial_start_${encodedUrl}`;
             evergreenScript = `
                 <script>
                     (function() {
-                        // সঠিক কোড দিলে লোকালস্টোরেজ ক্লিয়ার হয়ে নতুন করে টাইম কাউন্ট শুরু হবে
                         if (${extraTimeMs} > 0) {
                             localStorage.setItem('${storageKey}', new Date().getTime());
                         }
@@ -103,7 +111,7 @@ exports.handler = async (event, context) => {
                                     </div>
                                     <p style="font-size: 14px; color: #666;">Contact for details: <strong>${contactInfo}</strong></p>
                                 </div>
-                            \`;
+                            \`
                             window.stop();
                         }
                     })();
@@ -140,8 +148,6 @@ exports.handler = async (event, context) => {
 };
 
 function returnExpiredPage(contactInfo, displayExpiry, queryParams) {
-    const searchParams = new URLSearchParams(queryParams);
-    
     return {
         statusCode: 403,
         headers: { "Content-Type": "text/html; charset=utf-8" },
