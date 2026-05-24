@@ -4,13 +4,11 @@ exports.handler = async (event, context) => {
     const encodedUrl = event.queryStringParameters.site;
     const encodedContact = event.queryStringParameters.contact;
     const mode = event.queryStringParameters.mode || 'fixed';
-    
-    // Fixed Mode
     const expires = event.queryStringParameters.expires;
-    
-    // Evergreen Mode
     const durationMs = event.queryStringParameters.durationMs;
     const daysLabel = event.queryStringParameters.daysLabel || "Custom";
+    // এক্সটেনশন টোকেন লোকালস্টোরেজ কী ইউনিক করার জন্য
+    const extendToken = event.queryStringParameters.extendToken || ""; 
 
     if (!encodedUrl) {
         return { statusCode: 400, body: "Invalid Request: Missing site." };
@@ -23,7 +21,7 @@ exports.handler = async (event, context) => {
         let isExpired = false;
         let displayExpiry = "";
 
-        // ১. FIXED CALENDAR MODE LOGIC
+        // ১. FIXED CALENDAR MODE
         if (mode === 'fixed' && expires) {
             const expiryDate = new Date(parseInt(expires));
             const today = new Date();
@@ -38,10 +36,11 @@ exports.handler = async (event, context) => {
         const response = await axios.get(targetUrl);
         let html = response.data;
 
-        // ২. EVERGREEN MODE LOGIC
+        // ২. EVERGREEN MODE
         let evergreenScript = "";
         if (mode === 'evergreen' && durationMs) {
-            const storageKey = `trial_start_${encodedUrl}`;
+            // যদি এক্সটেন্ড করা হয়, তবে কী-এর সাথে টোকেন যোগ হবে যাতে নতুন করে ট্রায়াল কাউন্টডাউন শুরু হয়
+            const storageKey = `trial_start_${encodedUrl}${extendToken}`;
             evergreenScript = `
                 <script>
                     (function() {
@@ -72,7 +71,6 @@ exports.handler = async (event, context) => {
             `;
         }
 
-        // ব্যানার টেক্সট জেনারেশন
         let bannerText = "";
         if (mode === 'fixed') {
             bannerText = `Expires on: ${displayExpiry}`;
