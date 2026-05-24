@@ -11,18 +11,34 @@
         <h2>Trial Link Generator v1.2</h2>
         <div class="form-group">
             <input type="text" id="targetUrl" placeholder="Original Web URL (https://...)">
-            <input type="number" id="days" placeholder="Trial Duration (In Days)">
             <input type="text" id="contactInfo" placeholder="Contact Info (Phone/Email)">
             
-            <!-- New Mode Selection -->
+            <!-- Preset Duration Dropdown -->
+            <label for="durationPreset" style="display:block; text-align:left; font-size:13px; font-weight:bold; color:#495057; margin-top:10px;">Trial Duration:</label>
+            <select id="durationPreset" onchange="handleDurationChange()">
+                <option value="0.5">12 Hours</option>
+                <option value="1" selected>24 Hours</option>
+                <option value="3">3 Days</option>
+                <option value="7">7 Days</option>
+                <option value="14">14 Days</option>
+                <option value="30">30 Days</option>
+                <option value="custom-days">Custom (Enter Days)</option>
+                <option value="custom-date">Custom (Select Date & Time)</option>
+            </select>
+
+            <!-- Dynamic Custom Inputs -->
+            <input type="number" id="customDaysInput" placeholder="Enter number of days" style="display: none;">
+            <input type="datetime-local" id="customDateInput" onchange="handleDateInputChange()" style="display: none;">
+            
+            <!-- Mode Selection -->
             <div class="mode-selection">
                 <p>Select Trial Mode:</p>
-                <label>
-                    <input type="radio" name="trialMode" value="fixed" checked> 
+                <label id="fixedModeLabel">
+                    <input type="radio" name="trialMode" id="fixedMode" value="fixed" checked> 
                     <strong>Fixed Calendar Trial</strong> (Expires on a set date for everyone)
                 </label>
-                <label>
-                    <input type="radio" name="trialMode" value="evergreen"> 
+                <label id="evergreenModeLabel">
+                    <input type="radio" name="trialMode" id="evergreenMode" value="evergreen"> 
                     <strong>On-Click Individual Trial</strong> (Evergreen - Starts when user clicks)
                 </label>
             </div>
