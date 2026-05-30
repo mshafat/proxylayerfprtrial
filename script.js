@@ -8,7 +8,6 @@ function handleDurationChange() {
 
     customDaysInput.style.display = 'none';
     customDateInput.style.display = 'none';
-
     evergreenMode.disabled = false;
     evergreenLabel.classList.remove('disabled-mode');
 
@@ -23,13 +22,10 @@ function handleDurationChange() {
 }
 
 function handleDateInputChange() {
-    const evergreenMode = document.getElementById('evergreenMode');
-    const fixedMode = document.getElementById('fixedMode');
-    fixedMode.checked = true;
-    evergreenMode.disabled = true;
+    document.getElementById('fixedMode').checked = true;
+    document.getElementById('evergreenMode').disabled = true;
 }
 
-// এক্সপায়ারড লিংক থেকে ডেটা রিকভার করার ফাংশন
 function parseExpiredLink() {
     const linkText = document.getElementById('expiredLinkInput').value.trim();
     if (!linkText) return;
@@ -40,34 +36,30 @@ function parseExpiredLink() {
         
         const encodedSite = params.get('site');
         const encodedContact = params.get('contact');
+        const encodedPurchase = params.get('buy');
         const mode = params.get('mode');
 
-        if (encodedSite) {
-            // বেস৬৪ ডিকোড করে ইনপুটে বসানো
-            document.getElementById('targetUrl').value = atob(encodedSite);
-        }
-        if (encodedContact) {
-            document.getElementById('contactInfo').value = atob(encodedContact);
-        }
+        if (encodedSite) document.getElementById('targetUrl').value = atob(encodedSite);
+        if (encodedContact) document.getElementById('contactInfo').value = atob(encodedContact);
+        if (encodedPurchase) document.getElementById('purchaseUrl').value = atob(encodedPurchase);
+        
         if (mode) {
             const modeRadio = document.getElementById(mode + 'Mode');
             if (modeRadio) {
                 modeRadio.checked = true;
-                // যদি পুরোনো লিংকটি এভারগ্রিন হয়ে থাকে এবং বর্তমানে ক্যালেন্ডার ভিউ সিলেক্ট না থাকে, তবে এভারগ্রিন মোড অন থাকবে
                 if(document.getElementById('durationPreset').value !== 'custom-date') {
                     document.getElementById('evergreenMode').disabled = false;
                     document.getElementById('evergreenModeLabel').classList.remove('disabled-mode');
                 }
             }
         }
-    } catch (e) {
-        // ইউজার ভুল বা ইনকমপ্লিট লিংক পেস্ট করলে এরর ইগনোর করবে
-    }
+    } catch (e) {}
 }
 
 async function generateLink() {
     const targetUrl = document.getElementById('targetUrl').value;
     const contactInfo = document.getElementById('contactInfo').value || "your email/phone";
+    const purchaseUrl = document.getElementById('purchaseUrl').value;
     const preset = document.getElementById('durationPreset').value;
     const mode = document.querySelector('input[name="trialMode"]:checked').value;
     const resultElement = document.getElementById('result');
@@ -95,8 +87,10 @@ async function generateLink() {
 
     const encodedUrl = btoa(targetUrl);
     const encodedContact = btoa(contactInfo);
+    const encodedPurchase = purchaseUrl ? btoa(purchaseUrl) : "";
     
     let netlifyUrl = window.location.origin + `/.netlify/functions/proxy?site=${encodedUrl}&contact=${encodedContact}&mode=${mode}`;
+    if (encodedPurchase) netlifyUrl += `&buy=${encodedPurchase}`;
 
     if (mode === 'fixed') {
         let expiryTimestamp;
@@ -109,10 +103,8 @@ async function generateLink() {
         }
         netlifyUrl += `&expires=${expiryTimestamp}`;
     } else {
-        // এভারগ্রিন লিংকের ক্ষেত্রে এক্সটেনশন করলে ইউজারের ব্রাউজারের লোকালস্টোরেজ কী (Key) রিসেট করতে হবে।
-        // তাই নতুন লিংকে একটি ইউনিক টাইমস্ট্যাম্প জুড়ে দেওয়া হচ্ছে যাতে ব্রাউজার এটিকে নতুন লিংক হিসেবে চেনে।
         const durationMs = durationInDays * 24 * 60 * 60 * 1000;
-        netlifyUrl += `&durationMs=${durationMs}&daysLabel=${preset === 'custom-days' ? durationInDays : preset}&extendToken=${new Date().getTime()}`;
+        netlifyUrl += `&durationMs=${durationMs}&daysLabel=${preset === 'custom-days' ? durationInDays : preset}`;
     }
 
     resultElement.innerHTML = `
