@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web App Trial Link Generator v1.3</title>
+    <title>Web App Trial Link Generator v1.7</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h2>Trial Link Generator v1.3</h2>
+        <h2>Trial Link Generator v1.7</h2>
         
-        <!-- Extension Section -->
         <div class="extend-section">
             <p style="margin: 0 0 8px 0; font-weight: bold; color: #007bff; font-size: 14px;">Extend Expired Link? (Optional)</p>
             <input type="text" id="expiredLinkInput" placeholder="Paste expired trial link here..." oninput="parseExpiredLink()">
@@ -19,8 +18,8 @@
         <div class="form-group">
             <input type="text" id="targetUrl" placeholder="Original Web URL (https://...)">
             <input type="text" id="contactInfo" placeholder="Contact Info (Phone/Email)">
+            <input type="text" id="purchaseUrl" placeholder="Purchase Link / Payment URL (Optional)">
             
-            <!-- Preset Duration Dropdown -->
             <label for="durationPreset" style="display:block; text-align:left; font-size:13px; font-weight:bold; color:#495057; margin-top:10px;">Trial Duration:</label>
             <select id="durationPreset" onchange="handleDurationChange()">
                 <option value="0.5">12 Hours</option>
@@ -33,11 +32,9 @@
                 <option value="custom-date">Custom (Select Date & Time)</option>
             </select>
 
-            <!-- Dynamic Custom Inputs -->
             <input type="number" id="customDaysInput" placeholder="Enter number of days" style="display: none;">
             <input type="datetime-local" id="customDateInput" onchange="handleDateInputChange()" style="display: none;">
             
-            <!-- Mode Selection -->
             <div class="mode-selection">
                 <p>Select Trial Mode:</p>
                 <label id="fixedModeLabel">
