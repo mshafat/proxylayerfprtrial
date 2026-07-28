@@ -25,30 +25,46 @@ exports.handler = async (event, context) => {
         let extraTimeMs = 0;
 
         // ----------------------------------------------------
-        // পাসকোড ভ্যালিডেশন এবং ম্যাথ লজিক (v1.9)
+        // অল-ডেট সাম সাপোর্টেড পাসকোড ভ্যালিডেশন (v2.0)
         // ----------------------------------------------------
         if (renewCode.startsWith('p') && renewCode.includes('-')) {
             const now = new Date();
             
-            // ১. লোকাল টাইম অনুযায়ী আজকের তারিখের যোগফল (যেমন: ২৫ তারিখ = ২+৫ = ৭)
-            const localDate = now.getDate();
-            const localSum = localDate.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0);
-            
-            // ২. সার্ভার/ইউটিসি টাইম অনুযায়ী তারিখের যোগফল
-            const utcDate = now.getUTCDate();
-            const utcSum = utcDate.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0);
-            
-            const parts = renewCode.split('-');
-            const firstPart = parts[0]; // যেমন: 'p168'
-            const secondPart = parts[1]; // যেমন: '7'
+            // ১. তারিখের যোগফল বের করার ফাংশন
+            const getDigitSum = (dayNum) => {
+                let sum = dayNum.toString().split('').reduce((acc, digit) => acc + parseInt(digit), 0);
+                return sum;
+            };
 
-            // শেষের সংখ্যাটি আজকের লোকাল বা ইউটিসি যোগফলের সাথে মিললে
-            if (secondPart === localSum.toString() || secondPart === utcSum.toString()) {
-                const hoursText = firstPart.slice(1); // '168'
+            const localDate = now.getDate();
+            const utcDate = now.getUTCDate();
+
+            // লোকাল ও ইউটিসির যোগফল
+            const localSum = getDigitSum(localDate); // ২৮ তারিখের জন্য ১০
+            const utcSum = getDigitSum(utcDate);
+
+            // ১০-কে দ্বিতীয়বার যোগ করলে ১ হয় (তারও ব্যাকআপ)
+            const localSumSingle = getDigitSum(localSum); 
+            const utcSumSingle = getDigitSum(utcSum);
+
+            const parts = renewCode.split('-');
+            const firstPart = parts[0]; // যেমন: 'p1' বা 'p168'
+            const secondPart = parts[1]; // যেমন: '10' বা '9'
+
+            // যেকোনো একটি সম্ভাব্য যোগফলের সাথে মিললেই গ্রহণ করবে
+            const validSums = [
+                localSum.toString(), 
+                utcSum.toString(), 
+                localSumSingle.toString(), 
+                utcSumSingle.toString()
+            ];
+
+            if (validSums.includes(secondPart)) {
+                const hoursText = firstPart.slice(1); // 'p' বাদ দিয়ে ঘন্টা নেওয়া (যেমন: '1')
                 const hours = parseInt(hoursText);
 
                 if (!isNaN(hours) && hours > 0) {
-                    extraTimeMs = hours * 60 * 60 * 1000; // মিলিসেকেন্ডে রূপান্তর
+                    extraTimeMs = hours * 60 * 60 * 1000; // ঘন্টাক মিলিসেকেন্ডে রূপান্তর
                 }
             }
         }
@@ -70,13 +86,13 @@ exports.handler = async (event, context) => {
         const response = await axios.get(targetUrl);
         let html = response.data;
 
-        // এভারগ্রিন ও ফিক্সড মোডের জন্য গ্লোবাল এক্সপায়ার্ড স্ক্রিন HTML
+        // এভারগ্রিন ও ফিক্সড মোডের জন্য এক্সপায়ার্ড স্ক্রিন HTML
         const expiredPageHtml = `
             <div style="font-family: Arial, sans-serif; text-align: center; max-width: 500px; margin: 100px auto; padding: 30px; border: 1px solid #ffccd5; background-color: #fff5f5; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); color: #333;">
                 <h1 style="color: #e53e3e; margin-top: 0;">Sorry, your trial period has expired!</h1>
                 <p style="font-size: 16px;">To get unlimited full access immediately, click below:</p>
                 <div style="margin: 15px 0 25px 0;">
-                    \${"${purchaseUrl}" ? \`<a href="${purchaseUrl}" target="_blank" style="display:inline-block; background:#28a745; color:white; font-weight:bold; padding:12px 25px; text-decoration:none; border-radius:4px; font-size:16px; margin-top:10px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">Purchase Full Access</a>\` : ''}
+                    ${purchaseUrl ? `<a href="${purchaseUrl}" target="_blank" style="display:inline-block; background:#28a745; color:white; font-weight:bold; padding:12px 25px; text-decoration:none; border-radius:4px; font-size:16px; margin-top:10px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">Purchase Full Access</a>` : ''}
                 </div>
                 <p style="font-size: 14px; color:#555;">Have an Extension Passcode?</p>
                 <div style="margin: 15px 0;">
@@ -195,7 +211,7 @@ function returnExpiredPage(contactInfo, displayExpiry, purchaseUrl, queryParams)
                     <h1>Sorry, this trial period has expired!</h1>
                     <p>To unlock the software permanently and get full access, click the button below:</p>
                     
-                    \${"${purchaseBtnHtml}"}
+                    ${purchaseBtnHtml}
 
                     <p style="margin-top:10px; font-size:14px;">Or get in touch with support:</p>
                     <div class="contact-box">${contactInfo}</div>
